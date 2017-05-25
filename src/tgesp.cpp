@@ -6,52 +6,100 @@
  */
 
 #include "tgesp.h"
+#include "commands.h"
 //#include "../lib/StandardCplusplus/StandardCplusplus.h"
 //include "../lib/StandardCplusplus/vector"
 //#include <vector>
 
-
+char tgesp::serial_buff[SERIAL_BUFF_READ_SIZE];
+size_t tgesp::serial_buff_pos = 0;
 
 tgesp::tgesp() : server(80),
     client_connected(false),
-    cmds()
+	serial_dbg(false),
+    cmds(this)
 {
     ssid = "TP-LINK_28D578";
     //ssid = "TeliaGateway9C-97-26-49-11-55";
     //password of your WPA Network
     pass = "50044801";
     //pass = "179A1021DD";
-    server.begin();
 }
+
+void tgesp::setup()
+{
+    server.begin();
+    udp.begin(2390);
+}
+
+void tgesp::stop()
+{
+	server.stop();
+	udp.stop();
+}
+
 void tgesp::listen_for_clients()
 {
     WiFiClient client = server.available();
     if (client) {
         client_connected = true;
         connected_client = client;
-        Serial.println("new client");
         read_client(client);
         delay(1);
         client.stop();
-        Serial.println("client closed");
         client_connected = false;
     }
+}
 
+void tgesp::send_udp()
+{
+	//Serial.print("s udp");
+	//*(serial_buff+serial_buff_pos)= '\0';
+	cmds.send_udp(serial_buff,serial_buff_pos,udp);
+
+	serial_buff_pos = 0;
+}
+
+char tgesp::packetBuffer[255]= {};
+void tgesp::read_udp()
+{
+	//Serial.print("r udp");
+	// if there's data available, read a packet
+	  int packetSize = udp.parsePacket();
+	  if (packetSize) {
+
+	    // read the packet into packetBufffer
+	    int len = udp.read(packetBuffer, 255);
+	    if (len > 0) {
+	      packetBuffer[len] = 0;
+	      Serial.print(packetBuffer);
+	    }
+	  }
+}
+
+void tgesp::readSerial()
+{
+	while (Serial.available() > 0 )
+	{
+		*(serial_buff+serial_buff_pos) = Serial.read();
+		serial_buff_pos++;
+		if (serial_buff_pos+1>=SERIAL_BUFF_READ_SIZE) break;
+	}
 }
 
 void tgesp::scanWifi() {
     // scan for nearby networks:
-    Serial.println("** Scan Networks **");
+    if (serial_dbg) Serial.println("** Scan Networks **");
     byte numSsid = WiFi.scanNetworks();
 
     // print the list of networks seen:
-    Serial.print("SSID List:");
-    Serial.println(numSsid);
+    if (serial_dbg) Serial.print("SSID List:");
+    if (serial_dbg) Serial.println(numSsid);
     // print the network number and name for each network found:
     for (int thisNet = 0; thisNet<numSsid; thisNet++) {
-        Serial.print(thisNet);
-        Serial.print(") Network: ");
-        Serial.println(WiFi.SSID(thisNet));
+        if (serial_dbg) Serial.print(thisNet);
+        if (serial_dbg) Serial.print(") Network: ");
+        if (serial_dbg) Serial.println(WiFi.SSID(thisNet));
     }
 
 }
@@ -64,54 +112,89 @@ void tgesp::connectToWifi()
     WiFi.disconnect();
     WiFi.mode(WIFI_STA);
     // attempt to connect to Wifi network:
-    Serial.print("Attempting to connect to WAP network, SSID: ");
-    Serial.println(ssid);
+    if (serial_dbg) Serial.print("Attempting to connect to WAP network, SSID: ");
+    if (serial_dbg) Serial.println(ssid);
     WiFi.begin(ssid, pass);
     do {
         delay(connect_time);
         time += connect_time;
-        Serial.print(".\n");
+        if (serial_dbg) Serial.print(".\n");
     } while ( WiFi.status() != WL_CONNECTED && time < time_out);
     if (time < time_out)
-        Serial.println("Connected");
-    else Serial.println("Time out");
+        if (serial_dbg) Serial.println("Connected");
+    else if (serial_dbg) Serial.println("Time out");
 
 
     WiFi.printDiag(Serial);
-    Serial.println(WiFi.localIP());
+    if (serial_dbg) Serial.println(WiFi.localIP());
 }
 
-	bool tgesp::connectToWifi(const char * ssid_p, const char * pass_p)
+
+
+/* Set these to your desired credentials. */
+const char *ssid_ap = "ESPap";
+const char *password = "thereisnospoon";
+IPAddress ap_local_ip(192,168,5,1);
+IPAddress ap_gateway(192,168,5,1);
+IPAddress ap_subnet(255,255,255,0);
+
+void tgesp::createAP()
+{
+    //WiFi.disconnect();
+    stop();
+    WiFi.disconnect();
+    WiFi.mode(WIFI_AP);
+	WiFi.softAPConfig (ap_local_ip, ap_gateway, ap_subnet) ;
+
+	if (WiFi.softAP(ssid_ap, password))
+	{
+		Serial.println("AP created");
+	}
+	else
+	{
+		Serial.println("AP fail");
+	}
+	delay(1000);
+	WiFi.printDiag(Serial);
+	setup();
+
+
+}
+
+bool tgesp::connectToWifi(const char * ssid_p, const char * pass_p)
   {
+	stop();
     int connect_time = 2000;
     int time_out = 16000;
     int time = 0;
     WiFi.disconnect();
     WiFi.mode(WIFI_STA);
     // attempt to connect to Wifi network:
-    Serial.print("Attempting to connect to WAP network, SSID: ");
-    Serial.println(ssid_p);
+    if (serial_dbg) Serial.print("Attempting to connect to WAP network, SSID: ");
+    if (serial_dbg) Serial.println(ssid_p);
     WiFi.begin(ssid_p, pass_p);
     do {
         delay(connect_time);
         time += connect_time;
-        Serial.print(".\n");
+        if (serial_dbg) Serial.print(".\n");
     } while ( WiFi.status() != WL_CONNECTED && time < time_out);
     if (time < time_out)
     {
-        Serial.println("Connected");
+        if (serial_dbg) Serial.println("Connected");
         return true;
       }
     else {
-       Serial.println("Time out");
+       if (serial_dbg) Serial.println("Time out");
        return false;
     }
 
 
-    WiFi.printDiag(Serial);
-    Serial.println(WiFi.localIP());
+    if (serial_dbg) WiFi.printDiag(Serial);
+    if (serial_dbg) Serial.println(WiFi.localIP());
 
-  }
+    setup();
+
+ }
 
 const char * tgesp::cmp_input(const char * input, const char * cmp)
 {
@@ -133,47 +216,70 @@ void tgesp::handle_command(const char * input)
     output("handling command: "); output(input); output("\n");
        const char * parameter;
        if (cmp_input(input,"http_get")) {
-           Serial.println("Runs http_get()"); cmds.http_get();}
+           if (serial_dbg) Serial.println("Runs http_get()"); cmds.http_get();}
        if (cmp_input(input,"read_client")) {
-           Serial.println("Runs read_client()"); cmds.read_client();}
+           if (serial_dbg) Serial.println("Runs read_client()"); cmds.read_client();}
        if (cmp_input(input,"read_distance")) {
-           Serial.println("Runs read_distance()"); cmds.read_distance();}
+           if (serial_dbg) Serial.println("Runs read_distance()"); cmds.read_distance();}
        if (cmp_input(input,"servo_h")) {
-           Serial.println("Runs servo_h()"); cmds.servo_h();}
+           if (serial_dbg) Serial.println("Runs servo_h()"); cmds.servo_h();}
        if (cmp_input(input,"servo_l")) {
-           Serial.println("Runs servo_l()"); cmds.servo_l();}
+           if (serial_dbg) Serial.println("Runs servo_l()"); cmds.servo_l();}
        if ((parameter = cmp_input(input,"test_gpio")))
        {
-       Serial.print("Runs test_gpio("); Serial.print(parameter); Serial.print(")\n");
+       if (serial_dbg) Serial.print("Runs test_gpio("); if (serial_dbg) Serial.print(parameter); Serial.print(")\n");
        Commands::test_gpio(parameter);
        }
 
        if ((parameter = cmp_input(input,"test_servo")))
        {
-       Serial.print("Runs test_servo("); Serial.print(parameter); Serial.print(")\n");
+       if (serial_dbg) Serial.print("Runs test_servo("); if (serial_dbg) Serial.print(parameter); Serial.print(")\n");
        cmds.test_servo(parameter);
        }
 
        if ((parameter = cmp_input(input,"set_servo_h_pos")))
        {
-           Serial.print("Runs set_servo_h_pos("); Serial.print(parameter); Serial.print(")\n");
+           if (serial_dbg) Serial.print("Runs set_servo_h_pos("); if (serial_dbg) Serial.print(parameter); Serial.print(")\n");
            cmds.set_servo_h_pos(parameter);
        }
        if ((parameter = cmp_input(input,"set_servo_l_pos")))
        {
-           Serial.print("Runs set_servo_l_pos("); Serial.print(parameter); Serial.print(")\n");
+           if (serial_dbg) Serial.print("Runs set_servo_l_pos("); if (serial_dbg) Serial.print(parameter); Serial.print(")\n");
            cmds.set_servo_l_pos(parameter);
        }
        if ((parameter = cmp_input(input,"set_servo_delay")))
        {
-           Serial.print("Runs set_servo_delay("); Serial.print(parameter); Serial.print(")\n");
+           if (serial_dbg) Serial.print("Runs set_servo_delay("); if (serial_dbg) Serial.print(parameter); Serial.print(")\n");
            cmds.set_servo_delay(parameter);
+       }
+       if ((parameter = cmp_input(input,"set_client_ip")))
+       {
+           if (serial_dbg) Serial.print("Runs set_client_ip("); if (serial_dbg) Serial.print(parameter); Serial.print(")\n");
+           cmds.set_client_ip(parameter);
+       }
+       if ((parameter = cmp_input(input,"send_serial")))
+       {
+           if (serial_dbg) Serial.print("Runs send_serial("); if (serial_dbg) Serial.print(parameter); Serial.print(")\n");
+           cmds.send_serial(parameter);
+       }
+       if ((parameter = cmp_input(input,"send_params_serial")))
+       {
+           if (serial_dbg) Serial.print("Runs send_serial("); if (serial_dbg) Serial.print(parameter); Serial.print(")\n");
+           cmds.send_params_serial(parameter);
+       }
+       if ((parameter = cmp_input(input,"connect_to_ssid")))
+       {
+    	   connectToWifi(parameter,"50044801");
+       }
+       if ((parameter = cmp_input(input,"wifi_setup")))
+       {
+    	   cmds.wifi_setup(parameter);
        }
 }
 
 void tgesp::output(const char * out_put)
 {
-    Serial.print(out_put);
+    if (serial_dbg) Serial.print(out_put);
     if (client_connected)
     {
         response_content += out_put;
@@ -206,35 +312,13 @@ void tgesp::read_client(WiFiClient & client)
     while (client.connected()) {
         if (client.available()) {
             char c = client.read();
-            Serial.write(c);
             // if you've gotten to the end of the line (received a newline
             // character) and the line is blank, the http request has ended,
             // so you can send a reply
             if (c == '\n' && currentLineIsBlank) {
-
-                response_content += "<!DOCTYPE HTML>";
-                response_content += "<html>";
-                response_content += "<body>";
                 handle_http_request(lines[0]);
-                response_content += "</body>";
-                response_content += "</html>";
+                Serial.println(lines[0]);
                 send_response();
-
-                /*
-                   client.println("<!DOCTYPE HTML>");
-                   client.println("<html>");
-                   client.println("<body>");
-                   handle_http_request(lines[0]);
-                   for (int i=0; i<curr_line;++i)
-                   {
-
-                //client.println("<p>");
-                //  client.println(lines[i]);
-                //client.println("</p>");
-                }
-                client.println("</body>");
-                client.println("</html>");
-                */
                 break;
             }
             if (c == '\n') {

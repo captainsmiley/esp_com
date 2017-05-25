@@ -1,0 +1,8 @@
+Time: 722s\n\rExecute Times: Read sensors 0, print info 4, Control and actuate 1, check_serial1 1, \n\rSensor values: Trim1: 5 Trim2Time: 747s\n\rExecute Times: Read sensors 0, print info 4, Control and actuate 1, check_serial1 1, \n\rSensor values: Trim1: 3 Trim2
+o
+
+
+\n\rExecute Times: Read sensors 0, print info 4, Control and actuate 1, check_serial1 1, \n\rSensor values: Trim1: 5 Trim2:read seriread serial\r\nread serial\r\nread serial\r\nread serial\r\nread serial\r\nread serial\r\nread serial\r\nread serial\r\nTime: 80s\n\rExecute Times: Read sensors 0, print info 4, Control and actuate 1, check_serial1 1, \n\rSensor values: Trim1: 5 Trim2:read serial\r\nread serial\r\nread serial\r\nread serial\r\nread serial\r\nread serial\r\nread serial\r\nread serial\r\nread serial\r\nread serial\r\nTime: 81s
+
+
+ values: Trim1: 0 Trim2: 35 sensor1: 84 sensor2: 79 sensor3: 77 \n\rActuation: FW: 0 BW: 0 Turn: 87\n\r**************************************\n\rTime: 170s\n\rExecute Times: Read sensors 0, print info 4, Control and actuate 1, check_serial1 1, send_serial 1, \n\rSensor values: Trim1: 4 Trim2: 39 sensor1: 90 sensor2: 87 sensor3: 84 \n\rActuation: FW: 0 BW: 0 Turn: 87\n\r**************************************\n\rTime: 171s\n\rExecute Times: Read sensors 0, print info 4, Control and actuate 1, check_serial1 1, sen
